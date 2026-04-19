@@ -1,0 +1,105 @@
+{
+  "app": { "name": "FlowStack", "tagline": "by Verodyn" },
+  "nav": {
+    "overview": "Overview",
+    "workflows": "Workflows",
+    "executions": "Executions",
+    "calendar": "Calendar",
+    "tasks": "Tasks",
+    "settings": "Settings",
+    "signOut": "Sign out",
+    "search": "Search…",
+    "toggleTheme": "Toggle theme"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Welcome back to FlowStack.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "demoHint": "Demo: admin@verodyn.local / ChangeMe!2025"
+    },
+    "errors": {
+      "invalidEmail": "Invalid email address",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordTooLong": "Password must be at most 128 characters",
+      "invalidCredentials": "Invalid credentials",
+      "generic": "Sign-in failed. Please try again."
+    }
+  },
+  "overview": {
+    "title": "Overview",
+    "subtitle": "Your automation at a glance",
+    "stats": {
+      "activeWorkflows": "Active workflows",
+      "executions24h": "Executions (24h)",
+      "successRate": "Success rate",
+      "upcomingDeadlines": "Upcoming deadlines"
+    },
+    "chart": {
+      "title": "Executions over last 30 days",
+      "executions": "Executions",
+      "successes": "Successes"
+    },
+    "sections": {
+      "recentExecutions": "Recent executions",
+      "upcomingEvents": "Upcoming events"
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Automation across all categories",
+    "categories": {
+      "client-lifecycle": "Client lifecycle",
+      "deadline-followup": "Deadlines & follow-up",
+      "review-reporting": "Review & reporting",
+      "meeting-protocols": "Meeting protocols",
+      "triage-error-handling": "Triage & error handling"
+    },
+    "trigger": {
+      "webhook": "Webhook", "schedule": "Schedule", "form": "Form",
+      "email": "Email", "error": "Error trigger", "sub-workflow": "Sub-workflow", "unknown": "Unknown"
+    },
+    "columns": {
+      "name": "Workflow", "trigger": "Trigger", "lastRun": "Last run",
+      "successRate": "Success", "active": "Status", "nodes": "Nodes"
+    },
+    "status": { "active": "Active", "inactive": "Inactive" }
+  },
+  "executions": {
+    "title": "Executions",
+    "subtitle": "Run history across all workflows",
+    "status": {
+      "pending": "Pending", "running": "Running", "success": "Success",
+      "error": "Error", "cancelled": "Cancelled"
+    },
+    "columns": {
+      "workflow": "Workflow", "status": "Status", "started": "Started",
+      "duration": "Duration", "triggeredBy": "Triggered by"
+    }
+  },
+  "calendar": {
+    "title": "Calendar",
+    "subtitle": "Meetings, deadlines and reviews for the next two weeks",
+    "kind": { "meeting": "Meeting", "deadline": "Deadline", "review": "Review", "protocol": "Protocol" },
+    "today": "Today",
+    "noEvents": "No events scheduled.",
+    "linkedWorkflow": "Linked workflow",
+    "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  },
+  "tasks": {
+    "title": "Tasks",
+    "subtitle": "Open action items from protocols and reviews"
+  },
+  "errors": {
+    "pageTitle": "Something went wrong",
+    "pageBody": "An unexpected error occurred.",
+    "retry": "Try again",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "The page you requested does not exist.",
+    "backHome": "Back to overview"
+  },
+  "loading": "Loading…"
+}

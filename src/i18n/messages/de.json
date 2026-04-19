@@ -1,0 +1,125 @@
+{
+  "app": { "name": "FlowStack", "tagline": "by Verodyn" },
+  "nav": {
+    "overview": "Übersicht",
+    "workflows": "Workflows",
+    "executions": "Ausführungen",
+    "calendar": "Kalender",
+    "tasks": "Aufgaben",
+    "settings": "Einstellungen",
+    "signOut": "Abmelden",
+    "search": "Suchen…",
+    "toggleTheme": "Theme wechseln"
+  },
+  "auth": {
+    "login": {
+      "title": "Anmelden",
+      "subtitle": "Willkommen zurück bei FlowStack.",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "submit": "Anmelden",
+      "submitting": "Wird angemeldet…",
+      "demoHint": "Demo: admin@verodyn.local / ChangeMe!2025"
+    },
+    "errors": {
+      "invalidEmail": "Ungültige E-Mail-Adresse",
+      "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
+      "passwordTooLong": "Passwort darf höchstens 128 Zeichen lang sein",
+      "invalidCredentials": "Ungültige Anmeldedaten",
+      "generic": "Anmeldung fehlgeschlagen. Bitte erneut versuchen."
+    }
+  },
+  "overview": {
+    "title": "Übersicht",
+    "subtitle": "Ihre Automatisierung auf einen Blick",
+    "stats": {
+      "activeWorkflows": "Aktive Workflows",
+      "executions24h": "Ausführungen (24 h)",
+      "successRate": "Erfolgsquote",
+      "upcomingDeadlines": "Anstehende Fristen"
+    },
+    "chart": {
+      "title": "Ausführungen der letzten 30 Tage",
+      "executions": "Ausführungen",
+      "successes": "Erfolge"
+    },
+    "sections": {
+      "recentExecutions": "Letzte Ausführungen",
+      "upcomingEvents": "Anstehende Termine"
+    }
+  },
+  "workflows": {
+    "title": "Workflows",
+    "subtitle": "Automatisierungen über alle Kategorien hinweg",
+    "categories": {
+      "client-lifecycle": "Mandanten-Lifecycle",
+      "deadline-followup": "Fristen & Follow-up",
+      "review-reporting": "Review & Reporting",
+      "meeting-protocols": "Meeting-Protokolle",
+      "triage-error-handling": "Triage & Error-Handling"
+    },
+    "trigger": {
+      "webhook": "Webhook",
+      "schedule": "Zeitplan",
+      "form": "Formular",
+      "email": "E-Mail",
+      "error": "Fehler-Trigger",
+      "sub-workflow": "Sub-Workflow",
+      "unknown": "Unbekannt"
+    },
+    "columns": {
+      "name": "Workflow",
+      "trigger": "Trigger",
+      "lastRun": "Letzte Ausführung",
+      "successRate": "Erfolg",
+      "active": "Status",
+      "nodes": "Knoten"
+    },
+    "status": { "active": "Aktiv", "inactive": "Inaktiv" }
+  },
+  "executions": {
+    "title": "Ausführungen",
+    "subtitle": "Verlauf aller Workflow-Läufe",
+    "status": {
+      "pending": "Wartet",
+      "running": "Läuft",
+      "success": "Erfolg",
+      "error": "Fehler",
+      "cancelled": "Abgebrochen"
+    },
+    "columns": {
+      "workflow": "Workflow",
+      "status": "Status",
+      "started": "Gestartet",
+      "duration": "Dauer",
+      "triggeredBy": "Ausgelöst von"
+    }
+  },
+  "calendar": {
+    "title": "Kalender",
+    "subtitle": "Termine, Fristen und Reviews der nächsten zwei Wochen",
+    "kind": {
+      "meeting": "Termin",
+      "deadline": "Frist",
+      "review": "Review",
+      "protocol": "Protokoll"
+    },
+    "today": "Heute",
+    "noEvents": "Keine Termine geplant.",
+    "linkedWorkflow": "Verknüpfter Workflow",
+    "days": ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+  },
+  "tasks": {
+    "title": "Aufgaben",
+    "subtitle": "Offene Action-Items aus Protokollen und Reviews"
+  },
+  "errors": {
+    "pageTitle": "Etwas ist schiefgelaufen",
+    "pageBody": "Es ist ein unerwarteter Fehler aufgetreten.",
+    "retry": "Erneut versuchen",
+    "notFoundTitle": "Seite nicht gefunden",
+    "notFoundBody": "Die angeforderte Seite existiert nicht.",
+    "backHome": "Zurück zur Übersicht"
+  },
+  "loading": "Lädt…"
+}

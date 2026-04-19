@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   FlowStack by Verodyn — Design Tokens
+   "Empathic High-Tech": klinisch rein, aber nicht kalt.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --bg:            210 40% 98%;   /* #F8FAFC */
+    --surface:       0   0%  100%;  /* #FFFFFF */
+    --surface-muted: 210 40% 96%;   /* #F1F5F9 — sidebar */
+    --surface-sunken:214 32% 91%;
+
+    /* Text — Deep Slate hierarchy */
+    --ink:           222 47% 11%;   /* #0F172A — headlines */
+    --ink-muted:     215 16% 47%;   /* #64748B — secondary */
+    --ink-subtle:    215 20% 65%;   /* #94A3B8 — tertiary */
+
+    /* Borders */
+    --border:        214 32% 91%;   /* #E2E8F0 */
+    --border-strong: 213 27% 84%;
+
+    /* Brand */
+    --primary:       227 100% 59%;  /* #2D5BFF */
+    --primary-fg:    0 0% 100%;
+    --primary-soft:  227 100% 96%;
+
+    /* Accents */
+    --success:       160 84% 39%;   /* #10B981 */
+    --success-soft:  152 76% 95%;
+    --warning:       350 89% 60%;   /* #F43F5E */
+    --warning-soft:  350 100% 96%;
+    --info:          258 90% 66%;   /* #8B5CF6 */
+    --info-soft:     258 90% 96%;
+
+    --font-sans:    'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  .dark {
+    --bg:            222 47% 7%;
+    --surface:       222 40% 10%;
+    --surface-muted: 222 35% 13%;
+    --surface-sunken:222 32% 16%;
+
+    --ink:           210 40% 96%;
+    --ink-muted:     215 20% 70%;
+    --ink-subtle:    215 16% 55%;
+
+    --border:        222 30% 18%;
+    --border-strong: 222 25% 26%;
+
+    --primary:       227 100% 68%;
+    --primary-fg:    222 47% 8%;
+    --primary-soft:  227 60% 18%;
+    --success:       160 70% 50%;
+    --success-soft:  160 40% 15%;
+    --warning:       350 85% 68%;
+    --warning-soft:  350 50% 18%;
+    --info:          258 85% 72%;
+    --info-soft:     258 50% 20%;
+  }
+
+  * { border-color: hsl(var(--border)); }
+
+  body {
+    background-color: hsl(var(--bg));
+    color: hsl(var(--ink));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv11', 'ss01';
+  }
+
+  .nums {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .label-xs {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: hsl(var(--ink-subtle));
+  }
+
+  *:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px hsl(var(--bg)),
+      0 0 0 4px hsl(var(--primary));
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border-strong));
+    border: 2px solid hsl(var(--bg));
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--ink-subtle)); }
+}
+
+@layer components {
+  /* Border-based cards — no hard shadows */
+  .card {
+    background-color: hsl(var(--surface));
+    border: 1px solid hsl(var(--border));
+    border-radius: 12px;
+  }
+}
+
+@layer utilities {
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-slide-up { animation: slide-up 400ms cubic-bezier(0.16, 1, 0.3, 1); }
+}
