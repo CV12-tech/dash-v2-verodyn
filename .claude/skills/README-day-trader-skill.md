@@ -14,3 +14,10 @@ Setup:
   `trader-broker/claude_desktop_config.example.json`. Never paste keys in chat.
 
 To update: re-clone upstream and copy the `trader-*` folders over these.
+
+## trader-gold (own addition, not upstream)
+
+`/trader-gold` is a gold (XAU/USD) desk built for this repo: price and levels
+from Yahoo's GC=F future, gold and macro news, and the ForexFactory economic
+calendar in German time. It needs `nfs.faireconomy.media` allowed for the
+calendar. Tests: `python3 -m unittest discover -s .claude/skills/trader-gold/tests`.
