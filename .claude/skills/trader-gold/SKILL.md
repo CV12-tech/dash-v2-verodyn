@@ -57,6 +57,32 @@ investing.com selbst wird nicht abgerufen: keine API, Scraping laut Nutzungsbedi
 - **Fehler offen nennen.** Meldet das Tool `FEHLER: ... nicht erreichbar`, sag welche
   Domain fehlt (Netzwerkfreigabe) und mache mit dem Rest weiter. Nie Daten erfinden.
 
+## Signale und Push (signals.py)
+
+Mechanische Regeln, keine KI-Vorhersage. Alle Zeiten Berlin, 5-Min-Kerzen GC=F:
+
+1. Asien-Spanne = Hoch/Tief 00:00–08:00. Gehandelt nur bei 0,25–1,0 Tages-ATR.
+2. Trendfilter: KAUF nur wenn letzter Tagesschluss > SMA20, VERKAUF nur wenn darunter.
+3. Signal: erster abgeschlossener 5-Min-Schluss zwischen 08:00 und 16:00 über dem
+   Asien-Hoch (Kauf) bzw. unter dem Asien-Tief (Verkauf). Ein Signal pro Tag.
+4. Stopp = Mitte der Asien-Spanne, Ziel = 1,5 R, sonst flat um 21:00.
+5. Kalendersperre: kein Einstieg 30 Min. vor bis 15 Min. nach einem hohen oder ★-Termin.
+
+```bash
+python3 "${CLAUDE_SKILL_DIR}/signals.py" scan              # heutiger Stand und warum
+python3 "${CLAUDE_SKILL_DIR}/signals.py" backtest          # Regeln auf ~60 Tage 5-Min-Daten
+python3 "${CLAUDE_SKILL_DIR}/signals.py" backtest --no-trend --target-r 2
+python3 "${CLAUDE_SKILL_DIR}/signals.py" notify --dry-run  # was gepusht würde
+```
+
+Push: `.github/workflows/gold-signals.yml` läuft werktags alle 15 Min. und schickt
+neue Signale und deren Ergebnis (Ziel, Stopp, Feierabend) an ntfy, Thema aus dem
+Repo-Secret `NTFY_TOPIC`. Jeder Push kommt einmal.
+
+Beim Nennen von Backtest-Zahlen immer dazu sagen: kleine Stichprobe, ohne Spread und
+Slippage, ohne Kalendersperre (ForexFactory hat keine Historie), Vergangenheit ist
+keine Prognose.
+
 ## Zusammenspiel mit dem restlichen Pack
 
 Die übrigen `trader-*`-Skills sind für US-Aktien gebaut (NYSE-Zeiten, Alpaca-Aktienorders,

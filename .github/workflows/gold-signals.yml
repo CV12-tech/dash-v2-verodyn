@@ -1,0 +1,45 @@
+name: Gold-Signale
+
+# Checks the XAU/USD breakout rules (.claude/skills/trader-gold/signals.py)
+# every 15 minutes on weekdays and pushes new signals and their outcome to
+# ntfy. Needs the repository secret NTFY_TOPIC. Schedules only run from the
+# default branch, and GitHub may start them a few minutes late.
+
+on:
+  schedule:
+    - cron: "*/15 5-20 * * 1-5" # 05:00-20:45 UTC = 06/07-21/22 Uhr Berlin
+  workflow_dispatch:
+
+concurrency:
+  group: gold-signals
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore signal state
+        uses: actions/cache/restore@v4
+        with:
+          path: trader/state
+          key: gold-state-${{ github.run_id }}
+          restore-keys: gold-state-
+
+      - name: Scan and push
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: python3 .claude/skills/trader-gold/signals.py notify
+
+      - name: Save signal state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: trader/state
+          key: gold-state-${{ github.run_id }}
