@@ -83,6 +83,15 @@ Beim Nennen von Backtest-Zahlen immer dazu sagen: kleine Stichprobe, ohne Spread
 Slippage, ohne Kalendersperre (ForexFactory hat keine Historie), Vergangenheit ist
 keine Prognose.
 
+## Echtzeit über TradingView
+
+`tradingview/gold_asia_breakout.pine` ist dieselbe Regel als TradingView-Indikator
+(Pine v5). TradingView prüft damit jede 5-Min-Kerze auf seinen Servern und schickt
+Alarme in Echtzeit an die TradingView-App, per Webhook auch an ntfy
+(`https://ntfy.sh/<NTFY_TOPIC>`, Webhooks brauchen einen bezahlten TradingView-Tarif).
+TradingView wird nie gecrawlt: kein API, Scraping verstößt gegen die Nutzungsbedingungen.
+Der Kalender ist in Pine nicht verfügbar; vor einem Einstieg `gold.py calendar` prüfen.
+
 ## Zusammenspiel mit dem restlichen Pack
 
 Die übrigen `trader-*`-Skills sind für US-Aktien gebaut (NYSE-Zeiten, Alpaca-Aktienorders,
