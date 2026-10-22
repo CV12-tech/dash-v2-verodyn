@@ -1,0 +1,194 @@
+// trader-gold: die beiden Live-Setups für XAU/USD als ein TradingView-Indikator.
+// Dieselben Regeln wie setups/trend.py (vwap_pullback) und setups/intermarket.py
+// (asia_breakout_dxy), 1h-Chart, Zeiten deutsch:
+//
+// A) VWAP-Pullback im Trend
+//    Trendtag: VWAP (ab 00:00) steigt über 4 Bars und >= 60 % der heutigen Bars
+//    schlossen darüber; Tagestrend (Schluss/SMA20/SMA50) nicht dagegen. Pullback:
+//    ein Tief der letzten 4 Bars kam bis 0,15 ATR an den VWAP. Einstieg: Schluss über
+//    VWAP und über dem Vorbar-Hoch, Bar schließt 08:00-12:00. Stopp: Pullback-Tief
+//    - 0,2 ATR. Kein festes Ziel. Short spiegelbildlich.
+//    Backtest GC=F: 2024-25 PF 1,85 (145 Trades), 2026 PF 2,23 (74 Trades).
+// B) Asien-Breakout + Dollar
+//    Asien-Spanne 00:00-08:00, 0,25-1,0 Tages-ATR breit. Erster 1h-Schluss bis 16:00
+//    über dem Hoch (Kauf, nur wenn Vortagesschluss > SMA20) bzw. unter dem Tief
+//    (Verkauf, nur darunter). Gehandelt nur, wenn der Dollar-Index in den letzten
+//    8 Bars nicht in Dollar-Richtung lief. Stopp: Mitte der Spanne. Kein festes Ziel.
+//    Backtest GC=F: 2024-25 PF 1,42 (93 Trades), 2026 PF 2,65 (49 Trades).
+//
+// Beide: alle offenen Trades um 22:00 glattstellen. Kein Wirtschaftskalender in
+// Pine: Termine selbst prüfen (/trader-gold calendar).
+// Einrichten: 1h-Chart OANDA:XAUUSD, Indikator hinzufügen, Alarm erstellen ->
+// Bedingung "Gold Signale" -> "Any alert() function call".
+//@version=5
+indicator("Gold Signale", shorttitle="Gold Signale", overlay=true, max_labels_count=500)
+
+tz     = input.string("Europe/Berlin", "Zeitzone")
+useA   = input.bool(true, "A: VWAP-Pullback im Trend")
+useB   = input.bool(true, "B: Asien-Breakout + Dollar")
+dxySym = input.symbol("TVC:DXY", "Dollar-Index")
+
+// Last completed daily bar (no repaint).
+[dClose, dSma20, dSma50, dAtr] = request.security(syminfo.tickerid, "D",
+     [close[1], ta.sma(close, 20)[1], ta.sma(close, 50)[1], ta.atr(14)[1]], lookahead=barmerge.lookahead_on)
+dxy = request.security(dxySym, timeframe.period, close)
+
+atr = ta.atr(14)
+endMin = hour(time_close, tz) * 60 + minute(time_close, tz)
+startHour = hour(time, tz)
+dow = dayofweek(time, tz)
+weekday = dow != dayofweek.saturday and dow != dayofweek.sunday
+inWindow = weekday and endMin >= 8 * 60 and endMin <= 20 * 60
+newDay = dayofmonth(time, tz) != dayofmonth(time[1], tz)
+isFlatTime = endMin >= 22 * 60
+
+fmt(x) => str.tostring(x, format.mintick)
+
+// ---------------------------------------------------------------- A: VWAP pullback
+var float pv = 0.0
+var float vv = 0.0
+var int cnt = 0
+var int above = 0
+if newDay
+    pv := 0.0
+    vv := 0.0
+    cnt := 0
+    above := 0
+w = volume > 0 ? volume : 1.0
+pv += w * hlc3
+vv += w
+vw = pv / vv
+cnt += 1
+above += close > vw ? 1 : 0
+frac = above * 1.0 / cnt
+dTrend = dClose > dSma20 and dSma20 > dSma50 ? 1 : dClose < dSma20 and dSma20 < dSma50 ? -1 : 0
+
+touchedUp = false
+touchedDn = false
+float pbLow = low
+float pbHigh = high
+for k = 1 to 4
+    touchedUp := touchedUp or low[k] <= vw[k] + 0.15 * atr[k]
+    touchedDn := touchedDn or high[k] >= vw[k] - 0.15 * atr[k]
+    pbLow := math.min(pbLow, low[k])
+    pbHigh := math.max(pbHigh, high[k])
+aOk = useA and cnt >= 6 and endMin <= 12 * 60
+aLong = aOk and frac >= 0.6 and vw > vw[4] and dTrend >= 0 and touchedUp and close > vw and close > high[1]
+aShort = aOk and frac <= 0.4 and vw < vw[4] and dTrend <= 0 and touchedDn and close < vw and close < low[1]
+
+// ---------------------------------------------------------------- B: Asia breakout + dollar
+var float asiaHi = na
+var float asiaLo = na
+var bool bDone = false
+if newDay
+    asiaHi := na
+    asiaLo := na
+    bDone := false
+if startHour < 8
+    asiaHi := na(asiaHi) ? high : math.max(asiaHi, high)
+    asiaLo := na(asiaLo) ? low : math.min(asiaLo, low)
+wAtr = (asiaHi - asiaLo) / dAtr
+upD = dClose > dSma20
+dxyRet = dxy / dxy[8] - 1
+bCand = useB and not bDone and not na(asiaHi) and startHour >= 8 and endMin <= 16 * 60 and wAtr >= 0.25 and wAtr <= 1.0
+bBreakUp = bCand and close > asiaHi and upD
+bBreakDn = bCand and close < asiaLo and not upD
+bLong = bBreakUp and not na(dxyRet) and dxyRet <= 0
+bShort = bBreakDn and not na(dxyRet) and dxyRet >= 0
+
+// ---------------------------------------------------------------- trades
+var int sideA = 0
+var float entA = na
+var float stpA = na
+var float riskA = na
+var int barA = na
+var int sideB = 0
+var float entB = na
+var float stpB = na
+var float riskB = na
+var int barB = na
+
+exitText(name, side, ent, risk, px, why) =>
+    r = side * (px - ent) / risk
+    "Gold " + (side == 1 ? "Kauf" : "Verkauf") + " (" + name + "): " + why + " bei " + fmt(px) + ", Ergebnis " + str.tostring(r, "#.##") + "R (Einstieg " + fmt(ent) + ")"
+
+if barstate.isconfirmed
+    // A: stop or flat (no fixed target); a gap through the stop fills at the open
+    if sideA != 0 and bar_index > barA
+        hit = sideA == 1 ? low <= stpA : high >= stpA
+        if hit or isFlatTime or newDay
+            px = hit ? (sideA == 1 ? math.min(stpA, open) : math.max(stpA, open)) : close
+            alert(exitText("VWAP-Pullback", sideA, entA, riskA, px, hit ? "STOPP" : "glattgestellt"), alert.freq_once_per_bar_close)
+            label.new(bar_index, sideA == 1 ? high : low, (hit ? "Stopp " : "flat ") + str.tostring(sideA * (px - entA) / riskA, "#.##") + "R",
+                 style=sideA == 1 ? label.style_label_down : label.style_label_up, color=hit ? color.maroon : color.gray,
+                 textcolor=color.white, size=size.tiny)
+            sideA := 0
+            barA := bar_index
+    if sideB != 0 and bar_index > barB
+        hit = sideB == 1 ? low <= stpB : high >= stpB
+        if hit or isFlatTime or newDay
+            px = hit ? (sideB == 1 ? math.min(stpB, open) : math.max(stpB, open)) : close
+            alert(exitText("Asien-Breakout", sideB, entB, riskB, px, hit ? "STOPP" : "glattgestellt"), alert.freq_once_per_bar_close)
+            label.new(bar_index, sideB == 1 ? high : low, (hit ? "Stopp " : "flat ") + str.tostring(sideB * (px - entB) / riskB, "#.##") + "R",
+                 style=sideB == 1 ? label.style_label_down : label.style_label_up, color=hit ? color.maroon : color.gray,
+                 textcolor=color.white, size=size.tiny)
+            sideB := 0
+            barB := bar_index
+
+    // A: new entry, one trade at a time, not on the bar that closed the last one
+    if sideA == 0 and (na(barA) or bar_index > barA) and inWindow and (aLong or aShort)
+        sideA := aLong ? 1 : -1
+        entA := close
+        stpA := sideA == 1 ? pbLow - 0.2 * atr : pbHigh + 0.2 * atr
+        riskA := math.abs(entA - stpA)
+        barA := bar_index
+        both = sideB == sideA
+        alert("Gold " + (sideA == 1 ? "KAUFEN" : "VERKAUFEN") + " - VWAP-Pullback 1h (" + syminfo.ticker + ")\nEinstieg " + fmt(entA) +
+             " | Stopp " + fmt(stpA) + " | Ziel offen, flat 22:00 | Risiko " + fmt(riskA) + "/oz" +
+             (both ? "\nBestaetigt vom Asien-Breakout: eine Position, nicht doppelt." : "") +
+             "\nBacktest 2026: PF 2,23. Wirtschaftskalender pruefen!", alert.freq_once_per_bar_close)
+        label.new(bar_index, sideA == 1 ? low : high, (sideA == 1 ? "KAUF" : "VERKAUF") + " A\n" + fmt(entA),
+             style=sideA == 1 ? label.style_label_up : label.style_label_down, color=sideA == 1 ? color.green : color.red,
+             textcolor=color.white, size=size.small)
+
+    // B: first trend-direction breakout of the day decides; the dollar filter may skip it
+    if bBreakUp or bBreakDn
+        bDone := true
+        if sideB == 0 and (na(barB) or bar_index > barB) and inWindow and (bLong or bShort)
+            sideB := bLong ? 1 : -1
+            entB := close
+            stpB := (asiaHi + asiaLo) / 2
+            riskB := math.abs(entB - stpB)
+            barB := bar_index
+            both = sideA == sideB
+            alert("Gold " + (sideB == 1 ? "KAUFEN" : "VERKAUFEN") + " - Asien-Breakout + Dollar 1h (" + syminfo.ticker + ")\nEinstieg " + fmt(entB) +
+                 " | Stopp " + fmt(stpB) + " | Ziel offen, flat 22:00 | Risiko " + fmt(riskB) + "/oz" +
+                 (both ? "\nBestaetigt vom VWAP-Pullback: eine Position, nicht doppelt." : "") +
+                 "\nBacktest 2026: PF 2,65. Wirtschaftskalender pruefen!", alert.freq_once_per_bar_close)
+            label.new(bar_index, sideB == 1 ? low : high, (sideB == 1 ? "KAUF" : "VERKAUF") + " B\n" + fmt(entB),
+                 style=sideB == 1 ? label.style_label_up : label.style_label_down, color=sideB == 1 ? color.lime : color.orange,
+                 textcolor=color.black, size=size.small)
+
+// ---------------------------------------------------------------- chart
+plot(useA ? vw : na, "VWAP (ab 00:00)", color=color.new(color.purple, 0), linewidth=2)
+showAsia = useB and startHour >= 8 and endMin <= 22 * 60
+plot(showAsia ? asiaHi : na, "Asien-Hoch", color=color.orange, style=plot.style_linebr)
+plot(showAsia ? asiaLo : na, "Asien-Tief", color=color.orange, style=plot.style_linebr)
+plot(sideA != 0 ? stpA : na, "Stopp A", color=color.red, style=plot.style_linebr)
+plot(sideB != 0 ? stpB : na, "Stopp B", color=color.maroon, style=plot.style_linebr)
+bgcolor(useB and startHour < 8 ? color.new(color.orange, 93) : na, title="Asien-Session")
+
+var table box = table.new(position.top_right, 2, 4, bgcolor=color.new(color.black, 75))
+if barstate.islast
+    stA = sideA != 0 ? (sideA == 1 ? "KAUF offen" : "VERKAUF offen") : endMin > 12 * 60 ? "heute vorbei (ab 12:00)" :
+         frac >= 0.6 and vw > vw[4] and dTrend >= 0 ? "Aufwärts-Trendtag, warte" : frac <= 0.4 and vw < vw[4] and dTrend <= 0 ? "Abwärts-Trendtag, warte" : "kein Trendtag"
+    stB = sideB != 0 ? (sideB == 1 ? "KAUF offen" : "VERKAUF offen") : bDone ? "heute erledigt" : startHour < 8 ? "Asien läuft" :
+         na(wAtr) or wAtr < 0.25 or wAtr > 1.0 ? "Spanne passt nicht" : endMin > 16 * 60 ? "Fenster vorbei" : "warte auf Ausbruch"
+    table.cell(box, 0, 0, "A VWAP-Pullback", text_color=color.white)
+    table.cell(box, 1, 0, stA, text_color=color.yellow)
+    table.cell(box, 0, 1, "B Asien+Dollar", text_color=color.white)
+    table.cell(box, 1, 1, stB, text_color=color.yellow)
+    table.cell(box, 0, 2, "Asien-Spanne", text_color=color.white)
+    table.cell(box, 1, 2, na(wAtr) ? "-" : str.tostring(wAtr, "#.##") + " ATR", text_color=color.white)
+    table.cell(box, 0, 3, "Tagestrend", text_color=color.white)
+    table.cell(box, 1, 3, dTrend == 1 ? "auf" : dTrend == -1 ? "ab" : "neutral", text_color=dTrend == 1 ? color.lime : dTrend == -1 ? color.red : color.gray)

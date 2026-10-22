@@ -49,12 +49,13 @@ def ema_pullback(ctx, lookback=5, touch=0.1, stop_pad=0.2, target_r=1.5, daily=T
     return out
 
 
-def vwap_pullback(ctx, lookback=4, touch=0.15, stop_pad=0.2, target_r=1.5, min_above=0.6):
+def vwap_pullback(ctx, lookback=4, touch=0.15, stop_pad=0.2, target_r=1.5, min_above=0.6, until=None):
     """Trend day: session VWAP slope up and price closed above VWAP on at least
     `min_above` of today's bars so far; the daily trend agrees (or is neutral).
     Pullback: a low within `touch` ATR of VWAP in the last `lookback` bars.
     Entry: close back above VWAP and above the previous high. Stop: pullback low
-    minus `stop_pad` ATR. Mirror for short."""
+    minus `stop_pad` ATR. Mirror for short. `until`: no signal from bars that
+    close after this (h, m) German time."""
     b, e20, e50, a, pd = _common(ctx)
     vw, ds = ctx.vwap(), ctx.day_start()
     out = []
@@ -65,6 +66,8 @@ def vwap_pullback(ctx, lookback=4, touch=0.15, stop_pad=0.2, target_r=1.5, min_a
         above += b.c[i] > vw[i]
         cnt = i - ds[i] + 1
         if cnt < max(lookback + 2, 3) or not a[i]:
+            continue
+        if until and b.end_hm[i] > until:
             continue
         frac = above / cnt
         dt = _daily_trend(pd[i])
@@ -116,10 +119,14 @@ def momentum_cont(ctx, move=0.5, n_break=6, stop_atr=1.0, target_r=1.5):
 #   trend_vwap_pullback  KEEP  IS PF 1.54 n=261, OOS PF 1.29 n=137, 15m PF 1.14
 #   trend_ema_pullback   DROP  IS PF 1.23 n=179 but OOS PF 0.86 n=80
 #   trend_momentum       DROP  IS PF 0.86 n=70
+# Optimised 2026-10 on 1h 2024-25 only, then checked on 2026: no fixed target
+# (winners run until the 22:00 flat; IS +44.5R -> +53.5R, OOS +14.4R -> +30.6R)
+# and no signals after 12:00 (later ones: IS PF 1.08, OOS PF 0.87).
+# IS PF 1.85 (n=145), OOS PF 2.23 (n=74). target_r=50 means "no fixed target".
 SETUPS = {
-    "trend_vwap_pullback": (vwap_pullback, "1h", {}),
+    "trend_vwap_pullback": (vwap_pullback, "1h", {"target_r": 50, "until": (12, 0)}),
     # "trend_ema_pullback": (ema_pullback, "1h", {"target_r": 2.0}),
     # "trend_momentum": (momentum_cont, "1h", {}),
 }
 # Same rule on 15m: only 60 days of data (n=33, PF 1.14), so experimental.
-WATCH = {"trend_vwap_pullback_15m": (vwap_pullback, "15m", {})}
+WATCH = {"trend_vwap_pullback_15m": (vwap_pullback, "15m", {"target_r": 50, "until": (12, 0)})}

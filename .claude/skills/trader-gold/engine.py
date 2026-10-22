@@ -258,45 +258,71 @@ def signal(i, side, stop, target, tag="", **info):
 
 # ---------------------------------------------------------------- simulation
 
-def simulate(ctx, signals, name, cost=COST, flat=FLAT, max_bars=None, keep_open=False):
+def simulate(ctx, signals, name, cost=COST, flat=FLAT, max_bars=None, keep_open=False, mgmt=None):
     """One trade at a time per setup. Returns list of trade dicts with r (net of cost).
-    keep_open: also return a trade still open at the end of the data (result None)."""
+    keep_open: also return a trade still open at the end of the data (result None).
+
+    mgmt (optional trade management, all distances in R = entry-to-stop risk):
+      be_r:        once price went be_r R in favour, the stop moves to entry
+      trail_start: once price went this many R in favour, the stop trails ...
+      trail_r:     ... trail_r R behind the best price since entry
+      partial:     (fraction, at_r) - book this fraction at at_r R, the rest runs on
+      overnight:   True - no flat at `flat` / day change; use max_bars to cap the hold
+    Order inside a bar (conservative): flat, stop, partial, target; stop updates from a
+    bar's extremes apply from the next bar on."""
+    m = mgmt or {}
+    be_r, trail_start, trail_r = m.get("be_r"), m.get("trail_start"), m.get("trail_r")
+    part_frac, part_r = m.get("partial") or (0.0, None)
+    overnight = m.get("overnight", False)
     b = ctx.b
     trades, busy_until = [], -1
     for s in sorted(signals, key=lambda s: s["i"]):
         i = s["i"]
         if i <= busy_until or not ctx.in_window(i) or (i >= b.n - 1 and not keep_open):
             continue
-        side, entry, stop, target = s["side"], b.c[i], s["stop"], s["target"]
-        risk = (entry - stop) * side
+        side, entry, stop0, target = s["side"], b.c[i], s["stop"], s["target"]
+        risk = (entry - stop0) * side
         if risk <= 0 or (target - entry) * side <= 0:
             continue
-        exit_i, exit_px, result = None, None, None
+        stop, best, booked, left = stop0, entry, 0.0, 1.0
+        part_px = entry + side * part_r * risk if part_r else None
+        exit_i, result = None, None
         j = i + 1
         while j < b.n:
-            if b.date[j] != b.date[i] or b.hm[j] >= flat or (max_bars and j - i > max_bars):
-                exit_i, exit_px, result = j - 1, b.c[j - 1], "flat"
+            ends_day = not overnight and (b.date[j] != b.date[i] or b.hm[j] >= flat)
+            if ends_day or (max_bars and j - i > max_bars):
+                booked += left * (b.c[j - 1] - entry) * side
+                exit_i, result = j - 1, "flat"
                 break
-            hit_stop = b.l[j] <= stop if side > 0 else b.h[j] >= stop
-            hit_tgt = b.h[j] >= target if side > 0 else b.l[j] <= target
-            if hit_stop:
-                # a gap through the stop fills at the open
-                px = min(stop, b.o[j]) if side > 0 else max(stop, b.o[j])
-                exit_i, exit_px, result = j, px, "stop"
+            if (b.l[j] <= stop) if side > 0 else (b.h[j] >= stop):
+                px = min(stop, b.o[j]) if side > 0 else max(stop, b.o[j])  # a gap fills at the open
+                booked += left * (px - entry) * side
+                exit_i, result = j, "stop" if stop == stop0 else "trail" if (stop - entry) * side > 1e-9 else "be"
                 break
-            if hit_tgt:
-                exit_i, exit_px, result = j, target, "target"
+            if part_px is not None and left == 1.0 and ((b.h[j] >= part_px) if side > 0 else (b.l[j] <= part_px)):
+                booked += part_frac * (part_px - entry) * side
+                left -= part_frac
+            if (b.h[j] >= target) if side > 0 else (b.l[j] <= target):
+                booked += left * (target - entry) * side
+                exit_i, result = j, "target"
                 break
+            best = max(best, b.h[j]) if side > 0 else min(best, b.l[j])
+            gain = (best - entry) * side / risk
+            if be_r is not None and gain >= be_r:
+                stop = max(stop, entry) if side > 0 else min(stop, entry)
+            if trail_r is not None and gain >= (trail_start or 0):
+                ts = best - side * trail_r * risk
+                stop = max(stop, ts) if side > 0 else min(stop, ts)
             j += 1
         if exit_i is None:  # still open at the end of the data
             if keep_open:
                 trades.append(dict(setup=name, tag=s.get("tag", ""), i=i, t=b.t[i], date=b.date[i].isoformat(),
-                                   time="%02d:%02d" % b.end_hm[i], side=side, entry=entry, stop=stop,
+                                   time="%02d:%02d" % b.end_hm[i], side=side, entry=entry, stop=stop0,
                                    target=target, risk=risk, result=None, exit_i=None, r=None))
             break
-        r = ((exit_px - entry) * side - cost) / risk
+        r = (booked - cost) / risk
         trades.append(dict(setup=name, tag=s.get("tag", ""), i=i, t=b.t[i], date=b.date[i].isoformat(),
-                           time="%02d:%02d" % b.end_hm[i], side=side, entry=entry, stop=stop, target=target,
+                           time="%02d:%02d" % b.end_hm[i], side=side, entry=entry, stop=stop0, target=target,
                            risk=risk, result=result, exit_i=exit_i, r=round(r, 3)))
         busy_until = exit_i
     return trades

@@ -47,9 +47,9 @@ MAX_AGE = 45                        # minutes: older signals are recorded, not p
 CONFLUENCE = 60                     # minutes: same-side signals this close count together
 NAMES_DE = {
     "trend_vwap_pullback": "VWAP-Pullback im Trend",
+    "asia_breakout_dxy": "Asien-Breakout + Dollar",
     "trend_vwap_pullback_15m": "VWAP-Pullback 15m",
     "vwap_fade": "VWAP-Fade",
-    "asia_breakout_dxy": "Asien-Breakout + Dollar",
     "london_or": "London-Opening-Range",
 }
 
@@ -148,6 +148,13 @@ def agreeing(t, trades):
                    and abs((_dt.datetime.fromisoformat(o["signal_time"]) - t0).total_seconds()) <= CONFLUENCE * 60})
 
 
+def target_text(t):
+    """Setups without a fixed target use a far-away one (target_r=50): say so."""
+    if (t["target"] - t["entry"]) * t["side"] > 10 * t["risk"]:
+        return "offen (flat 22:00)"
+    return gold.money(t["target"])
+
+
 def side_de(side):
     return "KAUFEN" if side > 0 else "VERKAUFEN"
 
@@ -162,7 +169,7 @@ def render_scan(r, stats):
             {"target": "Ziel", "stop": "Stopp", "flat": "flat"}[t["result"]], t["exit_time"], t["r"])
         out.append("  %s %-9s %-24s %3s  Einstieg %s  Stopp %s  Ziel %s  %s  %s" % (
             t["signal_time"][11:16], side_de(t["side"]), label(t["setup"]), t["tf"], gold.money(t["entry"]),
-            gold.money(t["stop"]), gold.money(t["target"]), "★" * stars(st, len(agreeing(t, r["trades"]))), state))
+            gold.money(t["stop"]), target_text(t), "★" * stars(st, len(agreeing(t, r["trades"]))), state))
     if r.get("blocked_by"):
         e = r["blocked_by"]
         out.append("  GESPERRT: %s um %s – keine neuen Einstiege rund um den Termin" % (e["title"], e["time"][11:16]))
@@ -214,11 +221,12 @@ def push_messages(r, state, stats, now):
                                          (stats.get(t["setup"], {}).get("oos") or {}).get("pf") or 0))
         agree = agreeing(best, r["trades"])
         lines = ["Einstieg %s | Stopp %s | Ziel %s | Risiko %s/oz" % (
-            gold.money(best["entry"]), gold.money(best["stop"]), gold.money(best["target"]), gold.money(best["risk"]))]
+            gold.money(best["entry"]), gold.money(best["stop"]), target_text(best), gold.money(best["risk"]))]
         for t in group:
             lines.append("%s (%s): %s" % (label(t["setup"]), t["tf"], stat_line(stats.get(t["setup"]))))
         if len(agree) > 1:
-            lines.append("Bestätigt von %d Setups: %s" % (len(agree), ", ".join(label(a) for a in agree)))
+            lines.append("Bestätigt von %d Setups: %s. Eine Position, nicht doppelt einsteigen." % (
+                len(agree), ", ".join(label(a) for a in agree)))
         if r.get("next_event"):
             lines.append("Termin %s: %s" % (r["next_event"]["time"][11:16], r["next_event"]["title"]))
         if r.get("headline"):

@@ -132,5 +132,6 @@ CANDIDATES = {
 }
 
 SETUPS = {}  # all DROP; see CANDIDATES
-# IS 2024-25 PF 0.82 but OOS 2026 PF 2.91 and positive on 15m/5m: regime-dependent, experimental.
-WATCH = {"london_or": CANDIDATES["london_or"]}
+# IS 2024-25 PF 0.82 (no target: 1.02) but OOS 2026 PF 2.91 (no target: 3.40): regime-dependent,
+# experimental. Runs without a fixed target like the live setups.
+WATCH = {"london_or": (london_or, "15m", dict(CANDIDATES["london_or"][2], target_r=50))}

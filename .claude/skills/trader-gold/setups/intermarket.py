@@ -228,5 +228,8 @@ SETUPS = {
     # "yield_filtered_trend": (yield_filtered_trend, "1h", {"n": 24}),
     # "asia_breakout_dxy": (asia_breakout_dxy, "5m", {"k": 8}),
 }
-# Dollar filter on the Asia breakout: IS PF 1.00, OOS PF 2.05, 5m PF 3.08. Experimental.
-WATCH = {"asia_breakout_dxy": (asia_breakout_dxy, "5m", {"k": 8})}
+# Asia breakout with dollar filter and no fixed target (flat 22:00), 1h: IS PF 1.42
+# (n=93, +19.8R), OOS PF 2.65 (n=49). With the old 1.5R target it was IS PF 1.00;
+# the no-target change was found on the VWAP pullback's IS data, not on this setup.
+SETUPS = {"asia_breakout_dxy": (asia_breakout_dxy, "1h", {"k": 8, "target_r": 50})}
+WATCH = {}

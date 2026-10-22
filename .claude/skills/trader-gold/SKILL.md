@@ -60,17 +60,26 @@ investing.com selbst wird nicht abgerufen: keine API, Scraping laut Nutzungsbedi
 ## Signale und Push (signals.py, engine.py, setups/)
 
 Mechanische Regeln, keine KI-Vorhersage. Signale nur für Kerzen, die 08:00–20:00
-deutscher Zeit schließen; offene Trades sind um 22:00 flat. Jede Strategie liegt in
+deutscher Zeit schließen; offene Trades sind um 22:00 flat. Die Live-Setups haben kein
+festes Ziel: Gewinner laufen bis 22:00, Verlierer enden am Stopp (`target_r=50`). Jede Strategie liegt in
 `setups/*.py` und wird von `engine.py` gleich simuliert (Einstieg zum Schlusskurs,
 Kerze mit Stopp und Ziel zählt als Stopp, Gap durch den Stopp zum Eröffnungskurs,
 0,40 $/oz Kosten).
 
 Zwei Stufen:
 - `SETUPS` (live, Push mit hoher Priorität): bestanden 2024–25 (PF ≥ 1,15, n ≥ 80) UND
-  2026 (PF ≥ 1,1, n ≥ 25). Derzeit: **VWAP-Pullback im Trend (1h)**, ~3 Signale/Woche.
-- `WATCH` (experimentell, Push mit niedriger Priorität, max. ★): knapp gescheitert, 2026
-  positiv: VWAP-Fade (1h), Asien-Breakout + Dollar (5m), London-Opening-Range (15m),
-  VWAP-Pullback 15m.
+  2026 (PF ≥ 1,1, n ≥ 25). Zusammen ~3 Signale/Woche:
+  - **VWAP-Pullback im Trend (1h)**, nur Signale bis 12:00: 2024–25 PF 1,85 (145), 2026 PF 2,23 (74)
+  - **Asien-Breakout + Dollar (1h)**: 2024–25 PF 1,42 (93), 2026 PF 2,65 (49)
+  - Paket: +127 R in 2,4 Jahren, jedes Jahr positiv, größter Rückgang −10,7 R
+- `WATCH` (experimentell, Push mit niedriger Priorität, max. ★): VWAP-Fade (1h),
+  London-Opening-Range (15m), VWAP-Pullback 15m.
+
+Optimierung 10/2026 (gewählt auf 1h 2024–25, danach auf 2026 geprüft): kein festes Ziel
+statt 1,5 R (hilft in beiden Zeiträumen); VWAP-Pullback-Signale nach 12:00 haben keine
+Kante (2026 PF 0,87). Verworfen, weil 2026 nicht bestätigt oder ohne Effekt: Dollar-Filter
+auf dem VWAP-Pullback, Stopp auf Einstand, nachlaufender Stopp, Teilgewinne. Über Nacht
+halten bringt kaum mehr, kostet aber Swap und Gap-Risiko.
 
 Push-Qualität: ★ aus dem PF im Prüfzeitraum 2026 (`setups/stats.json`), +1 wenn mehrere
 Setups binnen 60 Min. in dieselbe Richtung zeigen. Kalendersperre 30 Min. vor bis 15 Min.
@@ -96,8 +105,8 @@ Vergangenheit ist keine Prognose.
 
 ## Echtzeit über TradingView
 
-`tradingview/gold_vwap_pullback.pine` ist das Live-Setup als TradingView-Indikator
-(Pine v5, 1h-Chart OANDA:XAUUSD). TradingView prüft jede Kerze auf seinen Servern und
+`tradingview/gold_signals.pine` enthält beide Live-Setups als einen TradingView-Indikator
+(Pine v5, 1h-Chart OANDA:XAUUSD, Dollar-Index TVC:DXY). TradingView prüft jede Kerze auf seinen Servern und
 schickt Alarme in Echtzeit an die TradingView-App, per Webhook auch an ntfy
 (`https://ntfy.sh/<NTFY_TOPIC>`, Webhooks brauchen einen bezahlten Tarif).
 TradingView wird nie gecrawlt: keine API, Scraping verstößt gegen die Nutzungsbedingungen.

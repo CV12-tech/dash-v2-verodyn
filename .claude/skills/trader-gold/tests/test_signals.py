@@ -132,6 +132,19 @@ class LiveTest(unittest.TestCase):
         self.assertIn("Bestätigt von 2 Setups", m["body"])
         self.assertEqual(signals.push_messages(self.scan(at(9, 35)), state, self.stats, at(9, 35)), [])
 
+    def test_open_target_is_shown_as_open(self):
+        r = self.scan(at(9, 20))
+        t = [x for x in r["trades"] if x["setup"] == "trend_vwap_pullback"][0]
+        self.assertEqual(signals.target_text(t), "offen (flat 22:00)")
+        msgs = signals.push_messages(r, {}, self.stats, at(9, 20))
+        self.assertIn("Ziel offen (flat 22:00)", msgs[0]["body"])
+        self.assertIn("nicht doppelt", msgs[0]["body"])
+
+    def test_live_setups(self):
+        live = research.all_setups(watch=False)
+        self.assertEqual(sorted(live), ["asia_breakout_dxy", "trend_vwap_pullback"])
+        self.assertEqual(live["trend_vwap_pullback"][2], {"target_r": 50, "until": (12, 0)})
+
     def test_stale_signals_are_not_pushed(self):
         state = {}
         msgs = signals.push_messages(self.scan(at(10, 10)), state, self.stats, at(10, 10))
