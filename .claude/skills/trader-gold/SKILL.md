@@ -57,39 +57,50 @@ investing.com selbst wird nicht abgerufen: keine API, Scraping laut Nutzungsbedi
 - **Fehler offen nennen.** Meldet das Tool `FEHLER: ... nicht erreichbar`, sag welche
   Domain fehlt (Netzwerkfreigabe) und mache mit dem Rest weiter. Nie Daten erfinden.
 
-## Signale und Push (signals.py)
+## Signale und Push (signals.py, engine.py, setups/)
 
-Mechanische Regeln, keine KI-Vorhersage. Alle Zeiten Berlin, 5-Min-Kerzen GC=F:
+Mechanische Regeln, keine KI-Vorhersage. Signale nur für Kerzen, die 08:00–20:00
+deutscher Zeit schließen; offene Trades sind um 22:00 flat. Jede Strategie liegt in
+`setups/*.py` und wird von `engine.py` gleich simuliert (Einstieg zum Schlusskurs,
+Kerze mit Stopp und Ziel zählt als Stopp, Gap durch den Stopp zum Eröffnungskurs,
+0,40 $/oz Kosten).
 
-1. Asien-Spanne = Hoch/Tief 00:00–08:00. Gehandelt nur bei 0,25–1,0 Tages-ATR.
-2. Trendfilter: KAUF nur wenn letzter Tagesschluss > SMA20, VERKAUF nur wenn darunter.
-3. Signal: erster abgeschlossener 5-Min-Schluss zwischen 08:00 und 16:00 über dem
-   Asien-Hoch (Kauf) bzw. unter dem Asien-Tief (Verkauf). Ein Signal pro Tag.
-4. Stopp = Mitte der Asien-Spanne, Ziel = 1,5 R, sonst flat um 21:00.
-5. Kalendersperre: kein Einstieg 30 Min. vor bis 15 Min. nach einem hohen oder ★-Termin.
+Zwei Stufen:
+- `SETUPS` (live, Push mit hoher Priorität): bestanden 2024–25 (PF ≥ 1,15, n ≥ 80) UND
+  2026 (PF ≥ 1,1, n ≥ 25). Derzeit: **VWAP-Pullback im Trend (1h)**, ~3 Signale/Woche.
+- `WATCH` (experimentell, Push mit niedriger Priorität, max. ★): knapp gescheitert, 2026
+  positiv: VWAP-Fade (1h), Asien-Breakout + Dollar (5m), London-Opening-Range (15m),
+  VWAP-Pullback 15m.
+
+Push-Qualität: ★ aus dem PF im Prüfzeitraum 2026 (`setups/stats.json`), +1 wenn mehrere
+Setups binnen 60 Min. in dieselbe Richtung zeigen. Kalendersperre 30 Min. vor bis 15 Min.
+nach einem hohen oder ★-Termin.
 
 ```bash
-python3 "${CLAUDE_SKILL_DIR}/signals.py" scan              # heutiger Stand und warum
-python3 "${CLAUDE_SKILL_DIR}/signals.py" backtest          # Regeln auf ~60 Tage 5-Min-Daten
-python3 "${CLAUDE_SKILL_DIR}/signals.py" backtest --no-trend --target-r 2
+python3 "${CLAUDE_SKILL_DIR}/signals.py" scan              # heutige Signale und Stand
 python3 "${CLAUDE_SKILL_DIR}/signals.py" notify --dry-run  # was gepusht würde
+python3 "${CLAUDE_SKILL_DIR}/signals.py" backtest          # alle Setups, ~2 J. 1h + 60 Tage 15m/5m
+python3 "${CLAUDE_SKILL_DIR}/research.py" DATA_DIR --write-stats   # Statistik für die Sterne neu
 ```
 
-Push: `.github/workflows/gold-signals.yml` läuft werktags alle 15 Min. und schickt
-neue Signale und deren Ergebnis (Ziel, Stopp, Feierabend) an ntfy, Thema aus dem
-Repo-Secret `NTFY_TOPIC`. Jeder Push kommt einmal.
+Neue Strategie: Funktion `setup(ctx, **params) -> [engine.signal(...)]` in `setups/`,
+erst in `WATCH`, nach bestandener Prüfung in `SETUPS`. Der Test
+`tests/test_signals.py` prüft automatisch, dass kein Setup in die Zukunft schaut.
+Getunt wird nur auf 1h vor 2026; 2026 bleibt Prüfzeitraum.
 
-Beim Nennen von Backtest-Zahlen immer dazu sagen: kleine Stichprobe, ohne Spread und
-Slippage, ohne Kalendersperre (ForexFactory hat keine Historie), Vergangenheit ist
-keine Prognose.
+Push: `.github/workflows/gold-signals.yml` läuft werktags alle 15 Min. und schickt
+neue Signale und deren Ergebnis an ntfy (Repo-Secret `NTFY_TOPIC`). Jeder Push kommt einmal.
+
+Beim Nennen von Backtest-Zahlen immer dazu sagen: Kosten geschätzt, Regimewechsel möglich,
+Vergangenheit ist keine Prognose.
 
 ## Echtzeit über TradingView
 
-`tradingview/gold_asia_breakout.pine` ist dieselbe Regel als TradingView-Indikator
-(Pine v5). TradingView prüft damit jede 5-Min-Kerze auf seinen Servern und schickt
-Alarme in Echtzeit an die TradingView-App, per Webhook auch an ntfy
-(`https://ntfy.sh/<NTFY_TOPIC>`, Webhooks brauchen einen bezahlten TradingView-Tarif).
-TradingView wird nie gecrawlt: kein API, Scraping verstößt gegen die Nutzungsbedingungen.
+`tradingview/gold_vwap_pullback.pine` ist das Live-Setup als TradingView-Indikator
+(Pine v5, 1h-Chart OANDA:XAUUSD). TradingView prüft jede Kerze auf seinen Servern und
+schickt Alarme in Echtzeit an die TradingView-App, per Webhook auch an ntfy
+(`https://ntfy.sh/<NTFY_TOPIC>`, Webhooks brauchen einen bezahlten Tarif).
+TradingView wird nie gecrawlt: keine API, Scraping verstößt gegen die Nutzungsbedingungen.
 Der Kalender ist in Pine nicht verfügbar; vor einem Einstieg `gold.py calendar` prüfen.
 
 ## Zusammenspiel mit dem restlichen Pack

@@ -1,13 +1,14 @@
 name: Gold-Signale
 
-# Checks the XAU/USD breakout rules (.claude/skills/trader-gold/signals.py)
-# every 15 minutes on weekdays and pushes new signals and their outcome to
-# ntfy. Needs the repository secret NTFY_TOPIC. Schedules only run from the
-# default branch, and GitHub may start them a few minutes late.
+# Runs every gold setup (.claude/skills/trader-gold/signals.py) every 15
+# minutes on weekdays and pushes new signals (08:00-20:00 German time) and
+# their outcome (until 22:00) to ntfy. Needs the repository secret
+# NTFY_TOPIC. Schedules only run from the default branch, and GitHub may
+# start them a few minutes late.
 
 on:
   schedule:
-    - cron: "*/15 5-20 * * 1-5" # 05:00-20:45 UTC = 06/07-21/22 Uhr Berlin
+    - cron: "*/15 6-21 * * 1-5" # 06:00-21:45 UTC = 07/08-22/23 Uhr Berlin
   workflow_dispatch:
 
 concurrency:

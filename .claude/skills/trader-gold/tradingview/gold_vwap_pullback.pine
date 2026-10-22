@@ -1,0 +1,140 @@
+// trader-gold: VWAP-Pullback im Trend für XAU/USD als TradingView-Indikator.
+// Dieselbe Regel wie setups/trend.py vwap_pullback (Live-Setup, 1h):
+//   Trendtag: VWAP (ab 00:00 deutscher Zeit) steigt über 4 Bars und >= 60 % der
+//   heutigen Bars schlossen darüber; Tagestrend (Schluss/SMA20/SMA50) nicht dagegen.
+//   Pullback: ein Tief der letzten 4 Bars kam bis 0,15 ATR an den VWAP.
+//   Einstieg: Schluss über VWAP und über dem Hoch der Vorbar.
+//   Stopp: Pullback-Tief - 0,2 ATR, Ziel 1,5 R. Short spiegelbildlich.
+//   Signale nur für Bars, die 08:00-20:00 schließen; flat um 22:00.
+// Backtest (GC=F 1h): 2024-25 PF 1,54 (261 Trades), 2026 PF 1,29 (137 Trades).
+// Kein Wirtschaftskalender in Pine: Termine selbst prüfen.
+//
+// Einrichten: 1-Stunden-Chart OANDA:XAUUSD, Indikator hinzufügen, Alarm
+// erstellen -> Bedingung "Gold VWAP-Pullback" -> "Any alert() function call".
+//@version=5
+indicator("Gold VWAP-Pullback", shorttitle="Gold VWAP-PB", overlay=true, max_labels_count=500)
+
+tz        = input.string("Europe/Berlin", "Zeitzone")
+lookback  = input.int(4, "Pullback-Fenster (Bars)", minval=2)
+touch     = input.float(0.15, "Berührung (x ATR)", step=0.05)
+stopPad   = input.float(0.2, "Stopp-Puffer (x ATR)", step=0.05)
+targetR   = input.float(1.5, "Ziel (R)", step=0.25)
+minAbove  = input.float(0.6, "Anteil Bars über VWAP", step=0.05)
+fromMin   = input.int(8 * 60, "Signale ab (Minute des Tages)")
+toMin     = input.int(20 * 60, "Signale bis (Minute des Tages)")
+flatMin   = input.int(22 * 60, "Glattstellen (Minute des Tages)")
+
+// Last completed daily bar (no repaint): close, SMA20, SMA50.
+[dClose, dSma20, dSma50] = request.security(syminfo.tickerid, "D",
+     [close[1], ta.sma(close, 20)[1], ta.sma(close, 50)[1]], lookahead=barmerge.lookahead_on)
+dTrend = dClose > dSma20 and dSma20 > dSma50 ? 1 : dClose < dSma20 and dSma20 < dSma50 ? -1 : 0
+
+atr = ta.atr(14)
+newDay = dayofmonth(time, tz) != dayofmonth(time[1], tz)
+
+// Session VWAP from 00:00 German time; bars of the day and bars closed above it.
+var float pv = 0.0
+var float vv = 0.0
+var int cnt = 0
+var int above = 0
+if newDay
+    pv := 0.0
+    vv := 0.0
+    cnt := 0
+    above := 0
+w = volume > 0 ? volume : 1.0
+pv += w * hlc3
+vv += w
+vw = pv / vv
+cnt += 1
+above += close > vw ? 1 : 0
+frac = above * 1.0 / cnt
+
+endMin = hour(time_close, tz) * 60 + minute(time_close, tz)
+dow = dayofweek(time, tz)
+inWindow = endMin >= fromMin and endMin <= toMin and dow != dayofweek.saturday and dow != dayofweek.sunday
+
+touchedUp = false
+touchedDn = false
+float pbLow = low
+float pbHigh = high
+for k = 1 to lookback
+    touchedUp := touchedUp or low[k] <= vw[k] + touch * atr[k]
+    touchedDn := touchedDn or high[k] >= vw[k] - touch * atr[k]
+    pbLow := math.min(pbLow, low[k])
+    pbHigh := math.max(pbHigh, high[k])
+
+enoughBars = cnt >= math.max(lookback + 2, 3)
+longSetup  = enoughBars and frac >= minAbove and vw > vw[lookback] and dTrend >= 0 and touchedUp and close > vw and close > high[1]
+shortSetup = enoughBars and frac <= 1 - minAbove and vw < vw[lookback] and dTrend <= 0 and touchedDn and close < vw and close < low[1]
+
+var int side = 0
+var bool inTrade = false
+var float ent = na
+var float stp = na
+var float tgt = na
+var int entBar = na
+var int exitBar = na
+
+fmt(x) => str.tostring(x, format.mintick)
+
+// Outcome first: target, stop (a bar touching both counts as stop) or flat.
+if barstate.isconfirmed and inTrade and bar_index > entBar
+    hitStop = side == 1 ? low <= stp : high >= stp
+    hitTgt = side == 1 ? high >= tgt : low <= tgt
+    isFlat = endMin >= flatMin or newDay
+    string result = na
+    float px = na
+    if hitStop
+        result := "STOPP ausgeloest"
+        px := side == 1 ? math.min(stp, open) : math.max(stp, open)
+    else if hitTgt
+        result := "ZIEL erreicht"
+        px := tgt
+    else if isFlat
+        result := "glattgestellt (22:00)"
+        px := close
+    if not na(result)
+        inTrade := false
+        exitBar := bar_index
+        r = side * (px - ent) / math.abs(ent - stp)
+        label.new(bar_index, side == 1 ? high : low, result + "\n" + str.tostring(r, "#.##") + "R",
+             style=side == 1 ? label.style_label_down : label.style_label_up,
+             color=hitTgt ? color.teal : hitStop ? color.maroon : color.gray, textcolor=color.white, size=size.tiny)
+        alert("Gold " + (side == 1 ? "Kauf" : "Verkauf") + ": " + result + " bei " + fmt(px) +
+             ", Ergebnis " + str.tostring(r, "#.##") + "R (Einstieg " + fmt(ent) + ")", alert.freq_once_per_bar_close)
+
+// New entry on a confirmed bar, one trade at a time.
+if barstate.isconfirmed and not inTrade and (na(exitBar) or bar_index > exitBar) and inWindow and (longSetup or shortSetup)
+    side := longSetup ? 1 : -1
+    ent := close
+    stp := side == 1 ? pbLow - stopPad * atr : pbHigh + stopPad * atr
+    risk = math.abs(ent - stp)
+    tgt := ent + side * targetR * risk
+    inTrade := true
+    entBar := bar_index
+    word = side == 1 ? "KAUFEN" : "VERKAUFEN"
+    label.new(bar_index, side == 1 ? low : high, word + "\n" + fmt(ent),
+         style=side == 1 ? label.style_label_up : label.style_label_down,
+         color=side == 1 ? color.green : color.red, textcolor=color.white, size=size.small)
+    alert("Gold " + word + " (VWAP-Pullback 1h, " + syminfo.ticker + ")\nEinstieg " + fmt(ent) + " | Stopp " + fmt(stp) +
+         " | Ziel " + fmt(tgt) + " | Risiko " + fmt(risk) + "/oz\nBacktest 2026: PF 1,29, 53 % Treffer. Wirtschaftskalender pruefen!",
+         alert.freq_once_per_bar_close)
+
+plot(vw, "VWAP (ab 00:00)", color=color.new(color.purple, 0), linewidth=2)
+plot(inTrade ? ent : na, "Einstieg", color=color.blue, style=plot.style_linebr)
+plot(inTrade ? stp : na, "Stopp", color=color.red, style=plot.style_linebr)
+plot(inTrade ? tgt : na, "Ziel", color=color.green, style=plot.style_linebr)
+
+var table box = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 75))
+if barstate.islast
+    state = inTrade ? (side == 1 ? "KAUF offen" : "VERKAUF offen") :
+         frac >= minAbove and vw > vw[lookback] and dTrend >= 0 ? "Aufwärts-Trendtag: warte auf Pullback" :
+         frac <= 1 - minAbove and vw < vw[lookback] and dTrend <= 0 ? "Abwärts-Trendtag: warte auf Pullback" : "kein Trendtag"
+    table.cell(box, 0, 0, "Status", text_color=color.white)
+    table.cell(box, 1, 0, state, text_color=color.yellow)
+    table.cell(box, 0, 1, "Über VWAP", text_color=color.white)
+    table.cell(box, 1, 1, str.tostring(frac * 100, "#") + " %", text_color=color.white)
+    table.cell(box, 0, 2, "Tagestrend", text_color=color.white)
+    table.cell(box, 1, 2, dTrend == 1 ? "auf" : dTrend == -1 ? "ab" : "neutral",
+         text_color=dTrend == 1 ? color.lime : dTrend == -1 ? color.red : color.gray)
